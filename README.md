@@ -1,6 +1,6 @@
 # InfraVision: AI-Powered Smart City Infrastructure Monitoring System
 
-Welcome to the **InfraVision** repository. This project is a comprehensive, end-to-end Smart City Infrastructure Management platform designed to bridge the gap between municipal authorities and citizens. By utilizing Artificial Intelligence, IoT integrations (simulated/real), and modern web technologies, InfraVision provides real-time monitoring and reporting capabilities for critical urban infrastructure.
+Welcome to the **InfraVision** repository. This project is a comprehensive, end-to-end Smart City Infrastructure Management platform designed to bridge the gap between municipal authorities and citizens. By utilizing Artificial Intelligence, IoT integrations (simulated/real), and modern web technologies, InfraVision provides real-time monitoring and reporting capabilities for critical urban infrastructure......
 
 ---
 
