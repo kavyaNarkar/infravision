@@ -1,0 +1,162 @@
+/* Google Font */
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap");
+
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  * {
+    font-family: "Manrope", sans-serif;
+    font-weight: 500;
+  }
+
+  body {
+    @apply overflow-x-hidden;
+  }
+}
+
+/* Dark mode helper */
+@custom-variant dark (&:where(.dark &));
+
+/* Theme variables */
+@theme {
+  --color-primary: #5044e5;
+}
+
+/* Utility overrides */
+@layer utilities {
+  .no-cursor {
+    cursor: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================= */
+/* Dashboard Loading States     */
+/* ============================= */
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  gap: 1.5rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.loading-spinner {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.6;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes mulShdSpin {
+  0%,
+  100% {
+    box-shadow: 0em -2.6em 0em 0em #ffffff,
+      1.8em -1.8em 0 0em rgba(255, 255, 255, 0.2),
+      2.5em 0em 0 0em rgba(255, 255, 255, 0.2),
+      1.75em 1.75em 0 0em rgba(255, 255, 255, 0.2),
+      0em 2.5em 0 0em rgba(255, 255, 255, 0.2),
+      -1.8em 1.8em 0 0em rgba(255, 255, 255, 0.2),
+      -2.6em 0em 0 0em rgba(255, 255, 255, 0.5),
+      -1.8em -1.8em 0 0em rgba(255, 255, 255, 0.7);
+  }
+
+  50% {
+    box-shadow: 0em -2.6em 0em 0em rgba(255, 255, 255, 0.2),
+      1.8em -1.8em 0 0em rgba(255, 255, 255, 0.2),
+      2.5em 0em 0 0em rgba(255, 255, 255, 0.5),
+      1.75em 1.75em 0 0em rgba(255, 255, 255, 0.7),
+      0em 2.5em 0 0em #ffffff,
+      -1.8em 1.8em 0 0em rgba(255, 255, 255, 0.2),
+      -2.6em 0em 0 0em rgba(255, 255, 255, 0.2),
+      -1.8em -1.8em 0 0em rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ============================= */
+/* Premium Glowing Card Effect   */
+/* ============================= */
+.premium-glow-card {
+  position: relative;
+  z-index: 1;
+  border-radius: 1rem;
+}
+
+/* GLOW BORDER (FIXED VERSION) */
+.premium-glow-card::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    90deg,
+    #3b82f6,
+    #6366f1,
+    #8b5cf6,
+    #3b82f6
+  );
+  background-size: 400% 400%;
+
+  /* 🔥 KEY FIX: SHOW ONLY BORDER */
+  padding: 2px;
+  -webkit-mask: 
+    linear-gradient(#000 0 0) content-box, 
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  filter: blur(12px);
+  opacity: 0;
+
+  z-index: -1;
+  transition: opacity 0.4s ease-in-out;
+}
+
+/* HOVER */
+.premium-glow-card:hover::before {
+  opacity: 1;
+  animation: border-glow 4s linear infinite;
+}
+
+/* ANIMATION */
+@keyframes border-glow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
