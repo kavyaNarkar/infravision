@@ -14,6 +14,7 @@ const teams = [
 
 const AssignIssueModal = ({ isOpen, issue, onClose, onConfirm }) => {
     const [selectedTeam, setSelectedTeam] = useState('');
+    const [isAssigning, setIsAssigning] = useState(false);
 
     const now = new Date();
     const currentDate = now.toLocaleDateString();
@@ -22,6 +23,7 @@ const AssignIssueModal = ({ isOpen, issue, onClose, onConfirm }) => {
     useEffect(() => {
         if (isOpen) {
             setSelectedTeam('');
+            setIsAssigning(false);
         }
     }, [isOpen]);
 
@@ -132,21 +134,33 @@ const AssignIssueModal = ({ isOpen, issue, onClose, onConfirm }) => {
                 <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
                     <button 
                         onClick={onClose}
-                        className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/50 transition-all active:scale-95 shadow-sm"
+                        disabled={isAssigning}
+                        className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/50 transition-all active:scale-95 shadow-sm disabled:opacity-50"
                     >
                         Dismiss
                     </button>
                     <button 
-                        disabled={!selectedTeam}
-                        onClick={() => onConfirm(issue.id, selectedTeam)}
+                        disabled={!selectedTeam || isAssigning}
+                        onClick={async () => {
+                            setIsAssigning(true);
+                            try {
+                                await onConfirm(issue.id, selectedTeam);
+                            } finally {
+                                setIsAssigning(false);
+                            }
+                        }}
                         className={`flex-[2] py-4 font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 ${
                             selectedTeam 
                             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/40 hover:scale-[1.02] hover:shadow-indigo-500/30' 
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                        }`}
+                        } ${isAssigning ? 'opacity-90' : ''}`}
                     >
-                        <UserCheck size={16} />
-                        Execute Assignment
+                        {isAssigning ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <UserCheck size={16} />
+                        )}
+                        {isAssigning ? 'Processing...' : 'Execute Assignment'}
                     </button>
                 </div>
             </div>

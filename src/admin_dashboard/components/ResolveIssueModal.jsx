@@ -3,6 +3,7 @@ import { X, CheckCircle, MapPin, Calendar, Clock, User, ShieldCheck } from 'luci
 
 const ResolveIssueModal = ({ isOpen, issue, onClose, onConfirm }) => {
     const [resolverName, setResolverName] = useState('Admin User');
+    const [isResolving, setIsResolving] = useState(false);
 
     const now = new Date();
     const currentDate = now.toLocaleDateString();
@@ -101,16 +102,29 @@ const ResolveIssueModal = ({ isOpen, issue, onClose, onConfirm }) => {
                 <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
                     <button 
                         onClick={onClose}
-                        className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/50 transition-all active:scale-95 shadow-sm"
+                        disabled={isResolving}
+                        className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/50 transition-all active:scale-95 shadow-sm disabled:opacity-50"
                     >
                         Back
                     </button>
                     <button 
-                        onClick={() => onConfirm(issue.id, resolverName)}
-                        className="flex-[2] py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/40 hover:scale-[1.02] hover:shadow-teal-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        disabled={isResolving}
+                        onClick={async () => {
+                            setIsResolving(true);
+                            try {
+                                await onConfirm(issue.id, resolverName);
+                            } finally {
+                                setIsResolving(false);
+                            }
+                        }}
+                        className={`flex-[2] py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/40 hover:scale-[1.02] hover:shadow-teal-500/30 transition-all active:scale-95 flex items-center justify-center gap-2 ${isResolving ? 'opacity-90' : ''}`}
                     >
-                        <CheckCircle size={16} />
-                        Confirm Registry
+                         {isResolving ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <CheckCircle size={16} />
+                        )}
+                        {isResolving ? 'Verifying...' : 'Confirm Registry'}
                     </button>
                 </div>
             </div>

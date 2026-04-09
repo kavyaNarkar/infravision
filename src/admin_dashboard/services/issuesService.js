@@ -39,13 +39,14 @@ export const normalizeModuleName = (moduleName) => {
 /**
  * Fetch and unify issues from all infrastructure endpoints
  */
-export const fetchAllIssues = async () => {
+export const fetchAllIssues = async (config = {}) => {
   try {
+    const { headers = {} } = config;
     const [potholesRes, bridgesRes, waterRes, streetlightsRes] = await Promise.all([
-      axios.get(`${API_BASE_URL}/potholes`),
-      axios.get(`${API_BASE_URL}/bridges`),
-      axios.get(`${API_BASE_URL}/waterleakage`),
-      axios.get(`${API_BASE_URL}/streetlights`)
+      axios.get(`${API_BASE_URL}/potholes`, { headers }),
+      axios.get(`${API_BASE_URL}/bridges`, { headers }),
+      axios.get(`${API_BASE_URL}/waterleakage`, { headers }),
+      axios.get(`${API_BASE_URL}/streetlights`, { headers })
     ]);
 
     const potholes = (potholesRes.data.data || []).map(p => ({
@@ -264,7 +265,9 @@ export const assignTeamToIssue = async (issueId, team, notes = '', issueType = '
  */
 export const fetchActionStatuses = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/issues/actions`);
+    const token = sessionStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await axios.get(`${API_BASE_URL}/issues/actions`, { headers });
     return response.data;
   } catch (error) {
     console.error('Error fetching action statuses:', error);
@@ -277,10 +280,12 @@ export const fetchActionStatuses = async () => {
  */
 export const assignIssueAction = async (issueId, assignedTo, sourceCollection) => {
   try {
+    const token = sessionStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await axios.post(`${API_BASE_URL}/issues/assign/${issueId}`, {
       assignedTo,
       sourceCollection
-    });
+    }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error in assignIssueAction:', error);
@@ -293,12 +298,31 @@ export const assignIssueAction = async (issueId, assignedTo, sourceCollection) =
  */
 export const resolveIssueAction = async (issueId, resolvedBy) => {
   try {
+    const token = sessionStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await axios.post(`${API_BASE_URL}/issues/resolve/${issueId}`, {
       resolvedBy
-    });
+    }, { headers });
     return response.data;
   } catch (error) {
     console.error('Error in resolveIssueAction:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update the status of an active action (Admin Action)
+ */
+export const updateActionStatus = async (issueId, status) => {
+  try {
+    const token = sessionStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await axios.put(`${API_BASE_URL}/issues/action/${issueId}`, {
+      status
+    }, { headers });
+    return response.data;
+  } catch (error) {
+    console.error('Error in updateActionStatus:', error);
     throw error;
   }
 };

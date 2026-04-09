@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchAllIssues, assignTeamToIssue, fetchActionStatuses, assignIssueAction, resolveIssueAction } from '../services/issuesService';
+import { fetchAllIssues, assignTeamToIssue, fetchActionStatuses, assignIssueAction, resolveIssueAction, updateActionStatus } from '../services/issuesService';
 
 export const IssuesContext = createContext();
 
@@ -12,7 +12,9 @@ export const IssuesProvider = ({ children }) => {
         try {
             if (!isSilent) setLoading(true);
             setError(null);
-            const fetched = await fetchAllIssues();
+            const token = sessionStorage.getItem('token');
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const fetched = await fetchAllIssues({ headers }); // Note: fetchAllIssues might need update but context can filter
             // Unify status: ensure we use 'active' or 'resolved' at the top level
             const unified = fetched.map(issue => ({
                 ...issue,
@@ -45,17 +47,23 @@ export const IssuesProvider = ({ children }) => {
     useEffect(() => {
         loadIssues();
         loadActionData();
-        const interval = setInterval(() => {
-            loadIssues(true);
-            loadActionData();
+        const interval = setInterval(async () => {
+            await Promise.all([loadIssues(true), loadActionData()]);
         }, 15000);
         return () => clearInterval(interval);
     }, [loadIssues, loadActionData]);
 
     const enrichedIssues = useMemo(() => {
-        return allIssues.map(issue => {
-            const assigned = actionStatus.assigned.find(a => a.issueId === issue.id);
-            const resolved = actionStatus.resolved.find(r => r.issueId === issue.id);
+        const result = allIssues.map(issue => {
+            const rawId = issue.id?.toString().trim().toLowerCase();
+            const assigned = actionStatus.assigned.find(a => {
+                const aId = (a.issueId || a.id)?.toString().trim().toLowerCase();
+                return aId === rawId;
+            });
+            const resolved = actionStatus.resolved.find(r => {
+                const rId = (r.issueId || r.id)?.toString().trim().toLowerCase();
+                return rId === rawId;
+            });
 
             let status = issue.status;
             let subStatus = issue.subStatus;
@@ -65,26 +73,47 @@ export const IssuesProvider = ({ children }) => {
                 subStatus = 'completed';
             } else if (assigned) {
                 status = 'active';
-                subStatus = 'assigned';
+                subStatus = assigned.status || 'assigned';
             }
 
             return {
                 ...issue,
                 status,
                 subStatus,
+                assignedTo: assigned?.assignedTo || null,
+                resolvedBy: resolved?.resolvedBy || null,
+                resolvedAt: resolved?.resolvedAt || null,
                 actionData: assigned || resolved || null,
                 isAssigned: !!assigned,
                 isResolved: !!resolved
             };
         });
+
+        // Diagnostic table for debugging
+        console.group('Issues Mapping Debug');
+        console.table(result.slice(0, 5).map(i => ({ 
+            id: i.id?.toString().substring(0, 8), 
+            stat: i.status, 
+            sub: i.subStatus 
+        })));
+        console.groupEnd();
+        
+        return result;
     }, [allIssues, actionStatus]);
 
     const assignIssue = useCallback(async (issueId, team, notes) => {
+        const idStr = issueId?.toString().trim();
+        
+        // Optimistic UI: Mark as assigned locally
+        setActionStatus(prev => ({
+            ...prev,
+            assigned: [...prev.assigned, { issueId: idStr, status: 'assigned', assignedTo: team }]
+        }));
+
         try {
-            const issue = enrichedIssues.find(i => i.id === issueId);
+            const issue = enrichedIssues.find(i => i.id?.toString().trim() === idStr);
             if (!issue) return;
 
-            // Map frontend module to backend collection if possible
             const collectionMap = {
                 'Roads': 'potholes',
                 'Bridges': 'bridge',
@@ -93,25 +122,65 @@ export const IssuesProvider = ({ children }) => {
             };
             const sourceCollection = collectionMap[issue.module] || 'issues';
 
-            await assignIssueAction(issueId, team, sourceCollection);
-            await loadActionData();
-            await loadIssues(true);
+            await assignIssueAction(idStr, team, sourceCollection);
+            await Promise.all([loadActionData(), loadIssues(true)]);
         } catch (err) {
             console.error('Failed to assign issue:', err);
+            await loadActionData();
             throw err;
         }
     }, [enrichedIssues, loadIssues, loadActionData]);
 
     const resolveIssue = useCallback(async (issueId, resolver) => {
+        const idStr = issueId?.toString().trim();
+
+        // Optimistic UI: Move to resolved locally
+        setActionStatus(prev => ({
+            assigned: prev.assigned.filter(a => (a.issueId || a.id)?.toString().trim() !== idStr),
+            resolved: [...prev.resolved, { issueId: idStr, resolvedBy: resolver, resolvedAt: new Date() }]
+        }));
+
         try {
-            await resolveIssueAction(issueId, resolver);
-            await loadActionData();
-            await loadIssues(true);
+            await resolveIssueAction(idStr, resolver);
+            await Promise.all([loadActionData(), loadIssues(true)]);
         } catch (err) {
             console.error('Failed to resolve issue:', err);
+            await loadActionData();
             throw err;
         }
     }, [loadIssues, loadActionData]);
+
+    const startProgress = useCallback(async (issueId) => {
+        if (!issueId) return;
+        const idStr = issueId.toString().trim();
+        
+        console.log(`[Lifecycle] Start Progress: ${idStr}`);
+        
+        // Optimistic UI
+        setActionStatus(prev => ({
+            ...prev,
+            assigned: prev.assigned.map(a => {
+                const aId = (a.issueId || a.id)?.toString().trim();
+                return aId === idStr ? { ...a, status: 'in-progress' } : a;
+            })
+        }));
+
+        try {
+            const response = await updateActionStatus(idStr, 'in-progress');
+            console.log('[Lifecycle] Server response:', response);
+            
+            if (!response.success) {
+                throw new Error(response.message || 'Server update failed');
+            }
+
+            await loadActionData();
+        } catch (err) {
+            console.error('[Lifecycle] Deploy FAILED:', err);
+            await loadActionData();
+            alert(`Deploy failed: ${err.message}`);
+        }
+    }, [loadActionData]);
+
 
     const reopenIssue = useCallback((issueId) => {
         setAllIssues(prev => prev.map(i =>
@@ -131,10 +200,11 @@ export const IssuesProvider = ({ children }) => {
         refreshIssues: loadIssues,
         assignIssue,
         resolveIssue,
+        startProgress,
         reopenIssue,
         assignedCount: actionStatus.assigned.length,
         resolvedCount: actionStatus.resolved.length
-    }), [enrichedIssues, loading, error, loadIssues, assignIssue, resolveIssue, reopenIssue, actionStatus]);
+    }), [enrichedIssues, loading, error, loadIssues, assignIssue, resolveIssue, startProgress, reopenIssue, actionStatus]);
 
     return (
         <IssuesContext.Provider value={value}>

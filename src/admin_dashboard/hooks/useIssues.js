@@ -8,7 +8,7 @@ export const useIssues = () => {
     throw new Error('useIssues must be used within an IssuesProvider')
   }
 
-  const { allIssues, loading, error, refreshIssues, assignIssue, resolveIssue, reopenIssue } = context
+  const { allIssues, loading, error, refreshIssues, assignIssue, resolveIssue, reopenIssue, startProgress } = context
 
   const criticalIssues = useMemo(() =>
     allIssues.filter(i =>
@@ -50,6 +50,7 @@ export const useIssues = () => {
     refreshIssues,
     assignIssue,
     resolveIssue,
+    startProgress,
     reopenIssue
   }
 }

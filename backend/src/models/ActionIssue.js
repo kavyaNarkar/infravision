@@ -39,7 +39,7 @@ const actionIssueSchema = new mongoose.Schema({
     status: {
         type: String,
         required: true,
-        enum: ['unassigned', 'assigned', 'resolved']
+        enum: ['unassigned', 'assigned', 'in-progress', 'resolved']
     }
 }, {
     timestamps: true

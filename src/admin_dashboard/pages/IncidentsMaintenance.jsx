@@ -4,24 +4,38 @@ import IssueCard from '../components/IssueCard'
 import AssignIssueModal from '../components/AssignIssueModal'
 import ResolveIssueModal from '../components/ResolveIssueModal'
 import IssueDetailsModal from '../components/IssueDetailsModal'
-import { AlertCircle, CheckCircle2, ListFilter, Activity, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ListFilter, Activity, Loader2, UserPlus } from 'lucide-react'
 
 const IncidentsMaintenance = ({ hideLayout = false }) => {
-  const { allIssues, loading, error, assignIssue, resolveIssue, reopenIssue } = useIssues()
+  const { allIssues, loading, error, assignIssue, resolveIssue, reopenIssue, startProgress } = useIssues()
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
 
-  const filteredIssues = allIssues.filter(issue => {
-    const matchesStatus = selectedFilter === 'all' ? true : issue.status === selectedFilter
-    const matchesSeverity = severityFilter === 'all' ? true : issue.severity?.toLowerCase() === severityFilter.toLowerCase()
-    return matchesStatus && matchesSeverity
-  })
+  const filteredIssues = React.useMemo(() => {
+    return allIssues.filter(issue => {
+      const sub = issue.subStatus?.toString().trim().toLowerCase() || 'detected';
+      const main = issue.status?.toString().trim().toLowerCase() || 'active';
+      const selected = selectedFilter.toLowerCase();
 
-  const statusCounts = {
-    all: allIssues.length,
-    active: allIssues.filter(i => i.status === 'active').length,
-    resolved: allIssues.filter(i => i.status === 'resolved').length
-  }
+      const matchesStatus = selected === 'all' ? true : 
+                            selected === 'active' ? (sub === 'detected' || sub === 'unassigned') :
+                            selected === 'resolved' ? main === 'resolved' :
+                            sub === selected;
+      
+      const matchesSeverity = severityFilter === 'all' ? true : issue.severity?.toLowerCase() === severityFilter.toLowerCase();
+      return matchesStatus && matchesSeverity;
+    })
+  }, [allIssues, selectedFilter, severityFilter])
+
+  const statusCounts = React.useMemo(() => {
+    return {
+      all: allIssues.length,
+      active: allIssues.filter(i => i.subStatus === 'detected' || i.subStatus === 'unassigned').length,
+      assigned: allIssues.filter(i => i.subStatus === 'assigned').length,
+      inProgress: allIssues.filter(i => i.subStatus === 'in-progress').length,
+      resolved: allIssues.filter(i => i.status === 'resolved').length
+    }
+  }, [allIssues])
 
   const [selectedIssue, setSelectedIssue] = useState(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -46,11 +60,18 @@ const IncidentsMaintenance = ({ hideLayout = false }) => {
   const handleAssignConfirm = async (issueId, team) => {
     await assignIssue(issueId, team)
     setShowAssignModal(false)
+    setSelectedFilter('assigned')
   }
 
-  const handleResolveConfirm = (issueId, resolver) => {
-    resolveIssue(issueId, resolver)
+  const handleResolveConfirm = async (issueId, resolver) => {
+    await resolveIssue(issueId, resolver)
     setShowResolveModal(false)
+    setSelectedFilter('resolved')
+  }
+
+  const handleStartProgress = async (issue) => {
+    await startProgress(issue.id)
+    setSelectedFilter('in-progress')
   }
 
   if (loading) {
@@ -80,29 +101,32 @@ const IncidentsMaintenance = ({ hideLayout = false }) => {
           <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Lifecycle tracking for active network anomalies</p>
         </div>
 
-        {/* Floating Stat Bar */}
-        <div className="flex bg-white p-2 rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 items-center gap-2 overflow-x-auto hide-scrollbar">
-            <StatPill icon={Activity} label="Total" count={statusCounts.all} color="text-slate-500" bg="bg-slate-50" />
-            <div className="w-px h-8 bg-slate-100 mx-2" />
-            <StatPill icon={AlertCircle} label="Active" count={statusCounts.active} color="text-rose-600" bg="bg-rose-50" />
-            <div className="w-px h-8 bg-slate-100 mx-2" />
-            <StatPill icon={CheckCircle2} label="Resolved" count={statusCounts.resolved} color="text-emerald-600" bg="bg-emerald-50" />
-        </div>
       </div>
 
       <div className="flex flex-col gap-10">
         {/* Navigation & Filters */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-6">
             <div className="flex items-center gap-6">
-                {['all', 'active', 'resolved'].map((status) => (
+                {['all', 'active', 'assigned', 'in-progress', 'resolved'].map((status) => (
                 <button
                     key={status}
-                    className={`relative py-2 text-sm font-black uppercase tracking-wider transition-all ${
+                    className={`relative py-2 text-sm font-black uppercase tracking-wider transition-all flex items-center ${
                     selectedFilter === status ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
                     }`}
                     onClick={() => setSelectedFilter(status)}
                 >
-                    {status}
+                    {status.replace('-', ' ')}
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-black transition-all ${
+                        selectedFilter === status 
+                        ? 'bg-slate-900 text-white shadow-lg' 
+                        : 'bg-slate-100 text-slate-500'
+                    }`}>
+                        {status === 'all' ? statusCounts.all : 
+                         status === 'active' ? statusCounts.active :
+                         status === 'assigned' ? statusCounts.assigned :
+                         status === 'in-progress' ? statusCounts.inProgress :
+                         statusCounts.resolved}
+                    </span>
                     {selectedFilter === status && (
                         <div className="absolute -bottom-6 left-0 right-0 h-1 bg-slate-900 rounded-full animate-in slide-in-from-left-2" />
                     )}
@@ -142,6 +166,7 @@ const IncidentsMaintenance = ({ hideLayout = false }) => {
                 onAssign={handleAssignClick}
                 onResolve={handleResolveClick}
                 onViewDetails={handleViewDetails}
+                onStartProgress={handleStartProgress}
                 />
             ))
             ) : (

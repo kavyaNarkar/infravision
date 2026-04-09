@@ -320,7 +320,10 @@ const Navbar = () => {
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
             >
               <div className="profile-info">
-                <span className="profile-name hidden sm:block">Admin Officer</span>
+                <div className="profile-text-group hidden sm:flex flex-col items-end gap-0.5">
+                  <span className="profile-name">Admin Officer</span>
+                  <span className="profile-role">Network Supervisor</span>
+                </div>
                 <div className="profile-avatar-container">
                   <div className="profile-avatar">AD</div>
                   <div className="profile-status-dot" />

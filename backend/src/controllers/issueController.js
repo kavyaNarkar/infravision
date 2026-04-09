@@ -130,9 +130,14 @@ exports.assignIssue = async (req, res) => {
                 'bridge': Bridge,
                 'potholes': Pothole,
                 'waterleakage': WaterLeakage,
-                'streetlights': Streetlight
+                'streetlights': Streetlight,
+                'roads': Pothole,
+                'bridges': Bridge,
+                'water': WaterLeakage,
+                'street lights': Streetlight
             };
-            const Model = modelMap[source];
+            const normalizedSource = source?.toString().toLowerCase().trim();
+            const Model = modelMap[normalizedSource] || modelMap[source];
             if (Model) {
                 originalIssue = await Model.findById(issueId);
             }
@@ -206,6 +211,48 @@ exports.resolveIssue = async (req, res) => {
     } catch (error) {
         console.error('Resolve Error:', error);
         res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+exports.updateActionStatus = async (req, res) => {
+    try {
+        const { issueId } = req.params;
+        const status = req.body.status?.toLowerCase().trim();
+        const idStr = issueId?.toString().trim();
+
+        console.log(`[Lifecycle] Attempting update for ID: ${idStr} to status: ${status}`);
+
+        // Search case-insensitively for the issueId string
+        const assignedIssue = await AssignedIssue.findOneAndUpdate(
+            { issueId: { $regex: new RegExp(`^${idStr}$`, 'i') } },
+            { status },
+            { new: true, runValidators: true }
+        );
+
+        if (!assignedIssue) {
+            const registry = await AssignedIssue.find().sort({ createdAt: -1 }).limit(5);
+            const existingIds = registry.map(r => r.issueId).join(', ');
+            console.error(`[Lifecycle] FAILED: ID ${idStr} not found. Recent IDs in DB: [${existingIds}]`);
+            
+            return res.status(404).json({ 
+                success: false,
+                message: 'Assigned issue not found',
+                searchedId: idStr,
+                dbRegistry: registry.map(r => r.issueId)
+            });
+        }
+
+        console.log(`[Lifecycle] SUCCESS: ${assignedIssue.issueId} updated to ${assignedIssue.status}`);
+        res.status(200).json({
+            success: true,
+            data: {
+                ...assignedIssue.toObject(),
+                status: assignedIssue.status
+            }
+        });
+    } catch (error) {
+        console.error('[Lifecycle] ERROR:', error);
+        res.status(500).json({ success: false, message: 'Server error during status update' });
     }
 };
 
