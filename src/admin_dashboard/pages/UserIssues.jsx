@@ -24,6 +24,7 @@ const UserIssues = ({ hideLayout = false }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [previewIssue, setPreviewIssue] = useState(null);
+    const [activeFilter, setActiveFilter] = useState('All');
 
     const API_URL = `${API_BASE_URL}/api/issues`;
     const token = sessionStorage.getItem('token');
@@ -79,6 +80,37 @@ const UserIssues = ({ hideLayout = false }) => {
                 <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Moderate and manage public infrastructure reports</p>
             </div>
 
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-100/50 p-1.5 rounded-[1.5rem] w-fit border border-slate-200/60 backdrop-blur-sm">
+                {['All', 'Pending', 'Approved', 'In Progress', 'Completed', 'Rejected'].map((filter) => {
+                    const count = filter === 'All' 
+                        ? issues.length 
+                        : issues.filter(i => {
+                            if (filter === 'Completed') return i.status?.toLowerCase() === 'resolved';
+                            return i.status?.toLowerCase() === filter.toLowerCase();
+                        }).length;
+                    
+                    return (
+                        <button
+                            key={filter}
+                            onClick={() => setActiveFilter(filter)}
+                            className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2.5 ${
+                                activeFilter === filter 
+                                    ? 'bg-white text-blue-600 shadow-sm border border-slate-200' 
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                            }`}
+                        >
+                            {filter}
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] ${
+                                activeFilter === filter ? 'bg-blue-50 text-blue-600' : 'bg-slate-200/50 text-slate-400'
+                            }`}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
             {/* Premium Table Card */}
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
                 <div className="overflow-x-auto hide-scrollbar">
@@ -94,7 +126,13 @@ const UserIssues = ({ hideLayout = false }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {issues.map((issue) => (
+                            {issues
+                                .filter(issue => {
+                                    if (activeFilter === 'All') return true;
+                                    if (activeFilter === 'Completed') return issue.status?.toLowerCase() === 'resolved';
+                                    return issue.status?.toLowerCase() === activeFilter.toLowerCase();
+                                })
+                                .map((issue) => (
                                 <tr key={issue._id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-3">
@@ -309,9 +347,17 @@ const ActionButtons = ({ issue, onUpdate, isFull = false }) => {
         );
     }
 
+    const isResolved = s === 'resolved';
+    const isRejected = s === 'rejected';
+
     return (
-        <div className="px-5 py-2.5 bg-slate-100 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <CheckCircle2 size={12} /> Lifecycle Complete
+        <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${
+            isResolved ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+            isRejected ? 'bg-rose-50 text-rose-600 border border-rose-100' : 
+            'bg-slate-100 text-slate-400'
+        }`}>
+            {isResolved ? <CheckCircle2 size={12} /> : isRejected ? <XCircle size={12} /> : <CheckCircle2 size={12} />}
+            {isResolved ? 'Issue Resolved' : isRejected ? 'Case Rejected' : 'Lifecycle Complete'}
         </div>
     );
 };
