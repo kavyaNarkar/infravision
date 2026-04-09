@@ -1,7 +1,9 @@
-import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchAllIssues, assignTeamToIssue, fetchActionStatuses, assignIssueAction, resolveIssueAction, updateActionStatus } from '../services/issuesService';
+import { IssuesContext } from './IssuesContextCore';
 
-export const IssuesContext = createContext();
+// Re-export context for backward compatibility with hooks/useIssues.js
+export { IssuesContext };
 
 export const IssuesProvider = ({ children }) => {
     const [allIssues, setAllIssues] = useState([]);
@@ -14,8 +16,7 @@ export const IssuesProvider = ({ children }) => {
             setError(null);
             const token = sessionStorage.getItem('token');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const fetched = await fetchAllIssues({ headers }); // Note: fetchAllIssues might need update but context can filter
-            // Unify status: ensure we use 'active' or 'resolved' at the top level
+            const fetched = await fetchAllIssues({ headers }); 
             const unified = fetched.map(issue => ({
                 ...issue,
                 status: (issue.status === 'fixed' || issue.status === 'resolved' || issue.status === 'completed') ? 'resolved' : 'active',
@@ -89,7 +90,7 @@ export const IssuesProvider = ({ children }) => {
             };
         });
 
-        // Diagnostic table for debugging
+        // Diagnostic Mapping Debug
         console.group('Issues Mapping Debug');
         console.table(result.slice(0, 5).map(i => ({ 
             id: i.id?.toString().substring(0, 8), 
@@ -104,7 +105,6 @@ export const IssuesProvider = ({ children }) => {
     const assignIssue = useCallback(async (issueId, team, notes) => {
         const idStr = issueId?.toString().trim();
         
-        // Optimistic UI: Mark as assigned locally
         setActionStatus(prev => ({
             ...prev,
             assigned: [...prev.assigned, { issueId: idStr, status: 'assigned', assignedTo: team }]
@@ -134,7 +134,6 @@ export const IssuesProvider = ({ children }) => {
     const resolveIssue = useCallback(async (issueId, resolver) => {
         const idStr = issueId?.toString().trim();
 
-        // Optimistic UI: Move to resolved locally
         setActionStatus(prev => ({
             assigned: prev.assigned.filter(a => (a.issueId || a.id)?.toString().trim() !== idStr),
             resolved: [...prev.resolved, { issueId: idStr, resolvedBy: resolver, resolvedAt: new Date() }]
@@ -156,7 +155,6 @@ export const IssuesProvider = ({ children }) => {
         
         console.log(`[Lifecycle] Start Progress: ${idStr}`);
         
-        // Optimistic UI
         setActionStatus(prev => ({
             ...prev,
             assigned: prev.assigned.map(a => {
@@ -212,3 +210,5 @@ export const IssuesProvider = ({ children }) => {
         </IssuesContext.Provider>
     );
 };
+
+export default IssuesProvider;
